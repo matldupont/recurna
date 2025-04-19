@@ -127,10 +127,26 @@ exports.Prisma.UserScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.GroceryCategoryScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  color: 'color',
+  icon: 'icon',
+  isDefault: 'isDefault',
+  parentId: 'parentId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  userId: 'userId'
+};
+
 exports.Prisma.GroceryItemScalarFieldEnum = {
   id: 'id',
   name: 'name',
   quantity: 'quantity',
+  checked: 'checked',
+  notes: 'notes',
+  categoryId: 'categoryId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   userId: 'userId'
@@ -154,6 +170,7 @@ exports.Prisma.NullsOrder = {
 
 exports.Prisma.ModelName = {
   User: 'User',
+  GroceryCategory: 'GroceryCategory',
   GroceryItem: 'GroceryItem'
 };
 

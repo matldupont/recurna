@@ -15,22 +15,46 @@ datasource db {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  auth0Id      String        @unique // This is the Auth0 'sub' field
-  email        String        @unique
-  name         String?
-  picture      String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  groceryItems GroceryItem[]
+  id                String            @id @default(cuid())
+  auth0Id           String            @unique // This is the Auth0 'sub' field
+  email             String            @unique
+  name              String?
+  picture           String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  groceryItems      GroceryItem[]
+  groceryCategories GroceryCategory[]
+}
+
+model GroceryCategory {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  color       String? // For UI customization
+  icon        String? // For UI customization
+  isDefault   Boolean           @default(false) // If true, this is a system default category
+  parentId    String? // For nested categories
+  parent      GroceryCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    GroceryCategory[] @relation("CategoryHierarchy")
+  items       GroceryItem[] // Items in this category
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  userId      String // Owner of this category
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([name, userId, parentId]) // Ensure category names are unique per user and parent
 }
 
 model GroceryItem {
-  id        Int      @id @default(autoincrement())
-  name      String
-  quantity  Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         Int              @id @default(autoincrement())
+  name       String
+  quantity   Int              @default(1)
+  checked    Boolean          @default(false) // To mark items as checked/completed
+  notes      String? // Optional notes about the item
+  categoryId String? // Optional category
+  category   GroceryCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

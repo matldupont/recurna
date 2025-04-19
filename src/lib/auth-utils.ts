@@ -1,5 +1,5 @@
-import { auth0 } from "./auth0";
 import { redirect } from "next/navigation";
+import { auth0 } from "./auth0";
 
 /**
  * Checks if the user is authenticated and redirects to login if not
@@ -7,16 +7,16 @@ import { redirect } from "next/navigation";
  * @returns The user session if authenticated
  */
 export async function requireAuth(redirectTo?: string) {
-  const session = await auth0.getSession();
-  
-  if (!session) {
-    const loginPath = redirectTo 
-      ? `/auth/login?returnTo=${encodeURIComponent(redirectTo)}`
-      : "/auth/login";
-    redirect(loginPath);
-  }
-  
-  return session;
+	const session = await auth0.getSession();
+
+	if (!session) {
+		const loginPath = redirectTo
+			? `/auth/login?returnTo=${encodeURIComponent(redirectTo)}`
+			: "/auth/login";
+		redirect(loginPath);
+	}
+
+	return session;
 }
 
 /**
@@ -24,6 +24,6 @@ export async function requireAuth(redirectTo?: string) {
  * @returns Boolean indicating if user is authenticated
  */
 export async function isAuthenticated() {
-  const session = await auth0.getSession();
-  return !!session;
+	const session = await auth0.getSession();
+	return !!session;
 }
