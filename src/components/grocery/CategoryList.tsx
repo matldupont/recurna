@@ -1,8 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import type { GroceryCategory, GroceryItem } from "@/generated/prisma";
+import type { GroceryCategory, GroceryItem as PrismaGroceryItem } from "@/generated/prisma";
 import { useState } from "react";
+
+// Extend the Prisma GroceryItem type to include the checked and notes properties
+type GroceryItem = PrismaGroceryItem & { checked?: boolean; notes?: string };
 
 interface CategoryListProps {
 	categories: GroceryCategory[];
