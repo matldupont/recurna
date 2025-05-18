@@ -10,8 +10,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
 }
 
 model User {
@@ -45,6 +45,10 @@ model GroceryCategory {
   name        String
   color       String?       // Hex color code
   icon        String?       // Icon identifier
+  isDefault   Boolean       @default(false) // Indicates if this is a default category
+  parentId    String?       // For nested categories
+  parent      GroceryCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    GroceryCategory[] @relation("CategoryHierarchy")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   userId      String

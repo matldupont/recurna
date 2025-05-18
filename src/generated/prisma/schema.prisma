@@ -30,6 +30,8 @@ model GroceryItem {
   id         Int              @id @default(autoincrement())
   name       String
   quantity   Int              @default(1)
+  checked    Boolean          @default(false)
+  notes      String?
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
   userId     String
@@ -39,13 +41,16 @@ model GroceryItem {
 }
 
 model GroceryCategory {
-  id        String        @id @default(cuid())
+  id        String            @id @default(cuid())
   name      String
   color     String? // Hex color code
   icon      String? // Icon identifier
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  parentId  String? // For nested categories
+  parent    GroceryCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  GroceryCategory[] @relation("CategoryHierarchy")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
   userId    String
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     GroceryItem[]
 }

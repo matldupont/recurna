@@ -172,11 +172,6 @@ export function CategoryManager({
 					<div className="flex items-center">
 						<span className="mr-2 text-xl">{category.icon}</span>
 						<span className="font-medium">{category.name}</span>
-						{category.isDefault && (
-							<span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-								Default
-							</span>
-						)}
 					</div>
 					
 					{/* Category actions */}
