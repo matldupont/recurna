@@ -1,20 +1,164 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from "@/components/ui/dialog";
 import type { GroceryCategory, GroceryItem as PrismaGroceryItem } from "@/generated/prisma";
 import { useState } from "react";
+import { Plus } from "lucide-react";
+import { AddItemModal } from "./AddItemModal";
 
 // Extend the Prisma GroceryItem type to include the checked and notes properties
 type GroceryItem = PrismaGroceryItem & { checked?: boolean; notes?: string };
 
+// Extend the GroceryCategory type to include children for hierarchical structure
+type CategoryWithChildren = GroceryCategory & {
+	children?: CategoryWithChildren[];
+};
+
 interface CategoryListProps {
-	categories: GroceryCategory[];
+	categories: CategoryWithChildren[];
 	items: {
 		categorized: Record<string, GroceryItem[]>;
 		uncategorized: GroceryItem[];
 	};
 	onToggleItem: (itemId: number) => void;
 	onAddItem: (data: { name: string; categoryId?: string }) => void;
+}
+
+// Recursive component to render a category and its children
+function CategoryItem({
+	category,
+	items,
+	expandedCategories,
+	toggleCategory,
+	onToggleItem,
+	openAddItemModal,
+	level = 0,
+}: {
+	category: CategoryWithChildren;
+	items: {
+		categorized: Record<string, GroceryItem[]>;
+		uncategorized: GroceryItem[];
+	};
+	expandedCategories: Record<string, boolean>;
+	toggleCategory: (categoryId: string) => void;
+	onToggleItem: (itemId: number) => void;
+	openAddItemModal: (categoryId?: string) => void;
+	level: number;
+}) {
+	const categoryItems = items?.categorized?.[category.id] || [];
+	const isExpanded = expandedCategories?.[category.id] !== false; // Default to expanded
+	const hasChildren = category.children && category.children.length > 0;
+
+	return (
+		<div
+			className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-2"
+			style={{
+				borderLeft: `4px solid ${category.color || "#e2e8f0"}`,
+				marginLeft: level > 0 ? `${level * 20}px` : '0',
+			}}
+		>
+			<div className="p-4 flex justify-between items-center">
+				<button
+					type="button"
+					className="flex-1 flex items-center cursor-pointer bg-transparent border-none text-left"
+					onClick={() => toggleCategory(category.id)}
+					aria-expanded={isExpanded}
+				>
+					<div className="flex items-center">
+						<span className="mr-2 text-xl">{category.icon}</span>
+						<h3 className="font-medium">{category.name}</h3>
+						<span className="ml-2 text-gray-500 text-sm">
+							({categoryItems.length}{" "}
+							{categoryItems.length === 1 ? "item" : "items"})
+						</span>
+						{hasChildren && (
+							<span className="ml-2 text-xs text-gray-500">
+								({category.children?.length}{" "}
+								{category.children?.length === 1 ? "subcategory" : "subcategories"})
+							</span>
+						)}
+					</div>
+					<span className="text-gray-500 ml-2">{isExpanded ? "▼" : "►"}</span>
+				</button>
+				<Button 
+					variant="ghost" 
+					size="sm" 
+					onClick={(e) => {
+						e.stopPropagation();
+						openAddItemModal(category.id);
+					}}
+					className="ml-2"
+				>
+					<Plus className="h-4 w-4" />
+				</Button>
+			</div>
+
+			{isExpanded && (
+				<div className="px-4 pb-4">
+					{/* Category items */}
+					{categoryItems.length > 0 ? (
+						<ul className="divide-y divide-gray-100 dark:divide-gray-700">
+							{categoryItems.map((item) => (
+								<li key={item.id} className="py-2 flex items-center">
+									<input
+										type="checkbox"
+										id={`item-${item.id}`}
+										checked={item.checked}
+										onChange={() => onToggleItem(item.id)}
+										className="mr-3 h-5 w-5"
+									/>
+									<label
+										htmlFor={`item-${item.id}`}
+										className={
+											item.checked ? "line-through text-gray-500" : ""
+										}
+									>
+										{item.name}{" "}
+										{item.quantity > 1 && `(${item.quantity})`}
+										{item.notes && (
+											<span className="ml-2 text-sm text-gray-500">
+												- {item.notes}
+											</span>
+										)}
+									</label>
+								</li>
+							))}
+						</ul>
+					) : (
+						<p className="text-gray-500 text-sm mb-2">
+							No items in this category
+						</p>
+					)}
+
+					{/* Child categories */}
+					{hasChildren && (
+						<div className="mt-4">
+							{category.children?.map((childCategory) => (
+								<CategoryItem
+									key={childCategory.id}
+									category={childCategory}
+									items={items}
+									expandedCategories={expandedCategories}
+									toggleCategory={toggleCategory}
+									onToggleItem={onToggleItem}
+									openAddItemModal={openAddItemModal}
+									level={level + 1}
+								/>
+							))}
+						</div>
+					)}
+				</div>
+			)}
+		</div>
+	);
 }
 
 export function CategoryList({
@@ -26,10 +170,8 @@ export function CategoryList({
 	const [expandedCategories, setExpandedCategories] = useState<
 		Record<string, boolean>
 	>({});
-	const [newItemName, setNewItemName] = useState("");
-	const [selectedCategoryId, setSelectedCategoryId] = useState<
-		string | undefined
-	>(undefined);
+	const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+	const [modalCategoryId, setModalCategoryId] = useState<string | undefined>(undefined);
 
 	// Toggle category expansion
 	const toggleCategory = (categoryId: string) => {
@@ -39,126 +181,46 @@ export function CategoryList({
 		}));
 	};
 
-	// Handle adding a new item
-	const handleAddItem = (e: React.FormEvent) => {
-		e.preventDefault();
-		if (newItemName.trim()) {
-			onAddItem({
-				name: newItemName.trim(),
-				categoryId: selectedCategoryId,
-			});
-			setNewItemName("");
-		}
+	// Open modal with a specific category pre-selected
+	const openAddItemModal = (categoryId?: string) => {
+		setModalCategoryId(categoryId);
+		setIsAddItemModalOpen(true);
 	};
 
 	return (
 		<div className="w-full">
-			{/* Add new item form */}
-			<form
-				onSubmit={handleAddItem}
-				className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm"
-			>
-				<h3 className="text-lg font-medium mb-3">Add New Item</h3>
-				<div className="flex flex-col sm:flex-row gap-3">
-					<input
-						type="text"
-						value={newItemName}
-						onChange={(e) => setNewItemName(e.target.value)}
-						placeholder="Enter item name"
-						className="flex-1 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-						required
-						aria-label="Item name"
-					/>
-					<select
-						value={selectedCategoryId || ""}
-						onChange={(e) => setSelectedCategoryId(e.target.value || undefined)}
-						className="p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"
-						aria-label="Category"
-					>
-						<option value="">No Category</option>
-						{categories.map((category) => (
-							<option key={category.id} value={category.id}>
-								{category.icon} {category.name}
-							</option>
-						))}
-					</select>
-					<Button type="submit" disabled={!newItemName.trim()}>
-						Add Item
-					</Button>
-				</div>
-			</form>
+			{/* Add Item Modal */}
+			<AddItemModal 
+				isOpen={isAddItemModalOpen}
+				onOpenChange={setIsAddItemModalOpen}
+				onAddItem={onAddItem}
+				categories={categories}
+				initialCategoryId={modalCategoryId}
+			/>
+
+			{/* Add Item Button (Global) */}
+			<div className="mb-6 flex justify-end">
+				<Button onClick={() => openAddItemModal()} className="flex items-center gap-1">
+					<Plus className="h-4 w-4" /> Add Item
+				</Button>
+			</div>
 
 			{/* Categories and items */}
 			<div className="space-y-4">
-				{categories?.map((category) => {
-					const categoryItems = items?.categorized?.[category.id] || [];
-					const isExpanded = expandedCategories?.[category.id] !== false; // Default to expanded
+				{/* Render categories recursively */}
+				{categories?.map((category) => (
+					<CategoryItem
+						key={category.id}
+						category={category}
+						items={items}
+						expandedCategories={expandedCategories}
+						toggleCategory={toggleCategory}
+						onToggleItem={onToggleItem}
+						openAddItemModal={openAddItemModal}
+						level={0}
+					/>
+				))}
 
-					return (
-						<div
-							key={category.id}
-							className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden"
-							style={{
-								borderLeft: `4px solid ${category.color || "#e2e8f0"}`,
-							}}
-						>
-							<button
-								type="button"
-								className="p-4 w-full flex justify-between items-center cursor-pointer bg-transparent border-none text-left"
-								onClick={() => toggleCategory(category.id)}
-								aria-expanded={isExpanded}
-							>
-								<div className="flex items-center">
-									<span className="mr-2 text-xl">{category.icon}</span>
-									<h3 className="font-medium">{category.name}</h3>
-									<span className="ml-2 text-gray-500 text-sm">
-										({categoryItems.length}{" "}
-										{categoryItems.length === 1 ? "item" : "items"})
-									</span>
-								</div>
-								<span className="text-gray-500">{isExpanded ? "▼" : "►"}</span>
-							</button>
-
-							{isExpanded && (
-								<div className="px-4 pb-4">
-									{categoryItems.length > 0 ? (
-										<ul className="divide-y divide-gray-100 dark:divide-gray-700">
-											{categoryItems.map((item) => (
-												<li key={item.id} className="py-2 flex items-center">
-													<input
-														type="checkbox"
-														id={`item-${item.id}`}
-														checked={item.checked}
-														onChange={() => onToggleItem(item.id)}
-														className="mr-3 h-5 w-5"
-													/>
-													<label
-														htmlFor={`item-${item.id}`}
-														className={
-															item.checked ? "line-through text-gray-500" : ""
-														}
-													>
-														{item.name}{" "}
-														{item.quantity > 1 && `(${item.quantity})`}
-														{item.notes && (
-															<span className="ml-2 text-sm text-gray-500">
-																- {item.notes}
-															</span>
-														)}
-													</label>
-												</li>
-											))}
-										</ul>
-									) : (
-										<p className="text-gray-500 text-sm">
-											No items in this category
-										</p>
-									)}
-								</div>
-							)}
-						</div>
-					);
-				})}
 
 				{/* Uncategorized items */}
 				{items?.uncategorized?.length > 0 && (
