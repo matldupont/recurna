@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -16,41 +10,45 @@ datasource db {
 
 model User {
   id                String            @id @default(cuid())
-  auth0Id           String            @unique // This is the Auth0 'sub' field
+  auth0Id           String            @unique
   email             String            @unique
   name              String?
   picture           String?
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
-  groceryItems      GroceryItem[]
   groceryCategories GroceryCategory[]
+  groceryItems      GroceryItem[]
 }
 
 model GroceryItem {
   id         Int              @id @default(autoincrement())
   name       String
   quantity   Int              @default(1)
-  checked    Boolean          @default(false)
-  notes      String?
   createdAt  DateTime         @default(now())
   updatedAt  DateTime         @updatedAt
   userId     String
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   categoryId String?
+  checked    Boolean          @default(false)
+  notes      String?
   category   GroceryCategory? @relation(fields: [categoryId], references: [id])
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model GroceryCategory {
-  id        String            @id @default(cuid())
-  name      String
-  color     String? // Hex color code
-  icon      String? // Icon identifier
-  parentId  String? // For nested categories
-  parent    GroceryCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children  GroceryCategory[] @relation("CategoryHierarchy")
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  userId    String
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     GroceryItem[]
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+  icon        String?
+  isDefault   Boolean           @default(false)
+  parentId    String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  userId      String
+  parent      GroceryCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    GroceryCategory[] @relation("CategoryHierarchy")
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items       GroceryItem[]
+
+  @@unique([name, userId, parentId])
 }
