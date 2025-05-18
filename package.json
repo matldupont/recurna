@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "biome check src",
     "format": "biome check --write src",
     "studio": "dotenv -e .env prisma studio",
-    "studio:local": "dotenv -e .env.local prisma studio"
+    "studio:local": "dotenv -e .env.local prisma studio",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.4.2",
