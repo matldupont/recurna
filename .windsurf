@@ -24,3 +24,6 @@
 
 # Authentication
 - Use Auth0 for authentication.
+
+# Package Management
+- Use pnpm for opackage management

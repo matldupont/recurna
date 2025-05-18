@@ -1,7 +1,14 @@
 "use client";
 
-import type { GroceryCategory, GroceryItem } from "@/generated/prisma";
-import { useEffect, useState } from "react";
+import type { GroceryCategory } from "@/generated/prisma";
+import { 
+	useGroceryItems, 
+	useGroceryCategories, 
+	useAddGroceryItem, 
+	useToggleGroceryItem, 
+	useAddGroceryCategory 
+} from "@/lib/api/grocery-api";
+import { useState, useEffect } from "react";
 import {
 	Tabs,
 	TabsContent,
@@ -16,154 +23,56 @@ interface GroceryDashboardProps {
 	initialCategories?: GroceryCategory[];
 }
 
-export function GroceryDashboard({ userId }: GroceryDashboardProps) {
-	const [categories, setCategories] = useState<GroceryCategory[]>([]);
-	const [items, setItems] = useState<{
-		categorized: Record<string, GroceryItem[]>;
-		uncategorized: GroceryItem[];
-	}>({
-		categorized: {},
-		uncategorized: [],
-	});
-	const [isLoading, setIsLoading] = useState(true);
+export function GroceryDashboard({ userId, initialCategories }: GroceryDashboardProps) {
 	const [activeTab, setActiveTab] = useState("items");
-
-	// Get data from the data attributes if this component is hydrated client-side
+	
+	// Use React Query hooks
+	const { 
+		data: items, 
+		isLoading: isItemsLoading 
+	} = useGroceryItems();
+	
+	const { 
+		data: fetchedCategories,
+		isLoading: isCategoriesLoading 
+	} = useGroceryCategories();
+	
+	const addItemMutation = useAddGroceryItem();
+	const toggleItemMutation = useToggleGroceryItem();
+	const addCategoryMutation = useAddGroceryCategory();
+	
+	// Use initialCategories if available, otherwise use fetched categories
+	const [categories, setCategories] = useState<GroceryCategory[]>(initialCategories || []);
+	
+	// Update categories when fetched
 	useEffect(() => {
-		const dashboardElement = document.getElementById("grocery-dashboard");
-		if (dashboardElement) {
-			try {
-				const categoriesData = dashboardElement.getAttribute("data-categories");
-				if (categoriesData) {
-					setCategories(JSON.parse(categoriesData));
-				}
-			} catch (error) {
-				console.error("Error parsing categories data:", error);
-			}
+		if (fetchedCategories) {
+			setCategories(fetchedCategories);
 		}
+	}, [fetchedCategories]);
 
-		// Fetch grocery items
-		fetchGroceryItems();
-	}, []);
-
-	// Initialize with empty data if items is undefined
-	useEffect(() => {
-		if (!items) {
-			setItems({
-				categorized: {},
-				uncategorized: [],
-			});
-		}
-	}, [items]);
-
-	// Fetch grocery items from the API
-	const fetchGroceryItems = async () => {
-		try {
-			setIsLoading(true);
-			const response = await fetch("/api/grocery-items?groupByCategory=true");
-			if (response.ok) {
-				const data = await response.json();
-				// Ensure data has the expected structure
-				setItems({
-					categorized: data.categorized || {},
-					uncategorized: data.uncategorized || [],
-				});
-			}
-		} catch (error) {
-			console.error("Error fetching grocery items:", error);
-			// Set default empty state on error
-			setItems({
-				categorized: {},
-				uncategorized: [],
-			});
-		} finally {
-			setIsLoading(false);
-		}
+	// Handle toggling an item's checked status
+	const handleToggleItem = (itemId: number) => {
+		toggleItemMutation.mutate(itemId);
 	};
 
-	// Fetch categories from the API
-	const fetchCategories = async () => {
-		try {
-			const response = await fetch("/api/grocery-categories?hierarchical=true");
-			if (response.ok) {
-				const data = await response.json();
-				setCategories(data);
-			}
-		} catch (error) {
-			console.error("Error fetching categories:", error);
-		}
-	};
-
-	// Toggle an item's checked status
-	const handleToggleItem = async (itemId: number) => {
-		try {
-			const response = await fetch("/api/grocery-items", {
-				method: "PATCH",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					id: itemId,
-					action: "toggle",
-				}),
-			});
-
-			if (response.ok) {
-				// Refresh the items
-				fetchGroceryItems();
-			}
-		} catch (error) {
-			console.error("Error toggling item:", error);
-		}
-	};
-
-	// Add a new grocery item
-	const handleAddItem = async (data: {
+	// Handle adding a new grocery item
+	const handleAddItem = (data: {
 		name: string;
 		categoryId?: string;
 		notes?: string;
 	}) => {
-		try {
-			const response = await fetch("/api/grocery-items", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(data),
-			});
-
-			if (response.ok) {
-				// Refresh the items
-				fetchGroceryItems();
-			}
-		} catch (error) {
-			console.error("Error adding item:", error);
-		}
+		addItemMutation.mutate(data);
 	};
 
-	// Add a new category
-	const handleAddCategory = async (data: {
+	// Handle adding a new category
+	const handleAddCategory = (data: {
 		name: string;
 		parentId?: string;
 		color?: string;
 		icon?: string;
 	}) => {
-		try {
-			const response = await fetch("/api/grocery-categories", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(data),
-			});
-
-			if (response.ok) {
-				// Refresh the categories
-				fetchCategories();
-			}
-		} catch (error) {
-			console.error("Error adding category:", error);
-		}
+		addCategoryMutation.mutate(data);
 	};
 
 	return (
@@ -175,14 +84,14 @@ export function GroceryDashboard({ userId }: GroceryDashboardProps) {
 				</TabsList>
 
 				<TabsContent value="items" className="space-y-4">
-					{isLoading ? (
+					{isItemsLoading ? (
 						<div className="text-center py-8">
 							<p>Loading grocery items...</p>
 						</div>
 					) : (
 						<CategoryList
 							categories={categories}
-							items={items}
+							items={items || { categorized: {}, uncategorized: [] }}
 							onToggleItem={handleToggleItem}
 							onAddItem={handleAddItem}
 						/>
@@ -190,10 +99,16 @@ export function GroceryDashboard({ userId }: GroceryDashboardProps) {
 				</TabsContent>
 
 				<TabsContent value="categories">
-					<CategoryManager
-						categories={categories}
-						onAddCategory={handleAddCategory}
-					/>
+					{isCategoriesLoading ? (
+						<div className="text-center py-8">
+							<p>Loading categories...</p>
+						</div>
+					) : (
+						<CategoryManager
+							categories={categories}
+							onAddCategory={handleAddCategory}
+						/>
+					)}
 				</TabsContent>
 			</Tabs>
 		</div>

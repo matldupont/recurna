@@ -23,6 +23,7 @@ export default async function Dashboard() {
 
 	// Get the categories in hierarchical structure
 	const categories = await getGroceryCategoriesHierarchy(user.id);
+	console.log("Categories:", categories);
 
 	return (
 		<ProtectedRoute currentPath="/dashboard">

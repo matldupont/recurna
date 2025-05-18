@@ -2,7 +2,14 @@
 
 import { Button } from "@/components/ui/button";
 import type { GroceryCategory } from "@/generated/prisma";
+import { useUpdateGroceryCategory, useDeleteGroceryCategory } from "@/lib/api/grocery-api";
+import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
+
+// Extended type for categories with children
+interface CategoryWithChildren extends GroceryCategory {
+	children?: CategoryWithChildren[];
+}
 
 interface CategoryManagerProps {
 	categories: GroceryCategory[];
@@ -50,6 +57,7 @@ const CATEGORY_ICONS = [
 	"🍪",
 	"🧻",
 	"🧼",
+	"🎁", // Gift emoji
 ];
 
 export function CategoryManager({
@@ -57,12 +65,18 @@ export function CategoryManager({
 	onAddCategory,
 }: CategoryManagerProps) {
 	const [isAdding, setIsAdding] = useState(false);
+	const [isEditing, setIsEditing] = useState(false);
 	const [newCategoryName, setNewCategoryName] = useState("");
 	const [selectedParentId, setSelectedParentId] = useState<string | undefined>(
 		undefined,
 	);
 	const [selectedColor, setSelectedColor] = useState(CATEGORY_COLORS[0]);
 	const [selectedIcon, setSelectedIcon] = useState(CATEGORY_ICONS[0]);
+	const [editingCategory, setEditingCategory] = useState<GroceryCategory | null>(null);
+	
+	// Use React Query mutations
+	const updateCategoryMutation = useUpdateGroceryCategory();
+	const deleteCategoryMutation = useDeleteGroceryCategory();
 
 	// Get top-level categories (those without a parent)
 	const topLevelCategories = categories.filter(
@@ -72,6 +86,17 @@ export function CategoryManager({
 	// Get child categories for a given parent
 	const getChildCategories = (parentId: string) => {
 		return categories.filter((category) => category.parentId === parentId);
+	};
+	
+	// Check if a category has children
+	const hasChildren = (category: GroceryCategory | CategoryWithChildren) => {
+		// First check if the category has a children property with items
+		const categoryWithChildren = category as CategoryWithChildren;
+		if (categoryWithChildren.children && categoryWithChildren.children.length > 0) {
+			return true;
+		}
+		// Otherwise check if any category has this category as parent
+		return categories.some(c => c.parentId === category.id);
 	};
 
 	// Handle adding a new category
@@ -88,36 +113,98 @@ export function CategoryManager({
 			setIsAdding(false);
 		}
 	};
+	
+	// Handle updating a category
+	const handleUpdateCategory = (e: React.FormEvent) => {
+		e.preventDefault();
+		if (editingCategory && newCategoryName.trim()) {
+			updateCategoryMutation.mutate({
+				id: editingCategory.id,
+				name: newCategoryName.trim(),
+				parentId: selectedParentId,
+				color: selectedColor,
+				icon: selectedIcon,
+			});
+			setNewCategoryName("");
+			setEditingCategory(null);
+			setIsEditing(false);
+		}
+	};
+	
+	// Start editing a category
+	const startEditCategory = (category: GroceryCategory) => {
+		setEditingCategory(category);
+		setNewCategoryName(category.name);
+		setSelectedParentId(category.parentId || undefined);
+		setSelectedColor(category.color || CATEGORY_COLORS[0]);
+		setSelectedIcon(category.icon || CATEGORY_ICONS[0]);
+		setIsEditing(true);
+		setIsAdding(false);
+	};
+	
+	// Handle deleting a category
+	const handleDeleteCategory = (categoryId: string) => {
+		if (confirm("Are you sure you want to delete this category? This cannot be undone.")) {
+			deleteCategoryMutation.mutate(categoryId);
+		}
+	};
 
 	// Render a category and its children recursively
-	const renderCategory = (category: GroceryCategory, depth = 0) => {
-		const children = getChildCategories(category.id);
+	const renderCategory = (category: GroceryCategory | CategoryWithChildren, depth = 0) => {
+		// Get children either from the category.children property or by filtering
+		const categoryWithChildren = category as CategoryWithChildren;
+		let children = categoryWithChildren.children || [];
+		if (!children.length) {
+			children = getChildCategories(category.id);
+		}
 		const paddingLeft = `${depth * 1.5}rem`;
 
 		return (
 			<div key={category.id}>
 				<div
-					className="p-3 flex items-center hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md"
+					className="p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 rounded-md"
 					style={{
 						paddingLeft,
 						borderLeft:
 							depth > 0 ? `2px solid ${category.color || "#e2e8f0"}` : "none",
 					}}
 				>
-					<span className="mr-2 text-xl">{category.icon}</span>
-					<span className="font-medium">{category.name}</span>
-					{category.isDefault && (
-						<span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-							Default
-						</span>
-					)}
+					<div className="flex items-center">
+						<span className="mr-2 text-xl">{category.icon}</span>
+						<span className="font-medium">{category.name}</span>
+						{category.isDefault && (
+							<span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+								Default
+							</span>
+						)}
+					</div>
+					
+					{/* Category actions */}
+					<div className="flex space-x-2">
+						<button
+							type="button"
+							className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+							onClick={() => startEditCategory(category)}
+							aria-label={`Edit ${category.name}`}
+						>
+							<Pencil className="h-4 w-4" />
+						</button>
+						<button
+							type="button"
+							className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+							onClick={() => handleDeleteCategory(category.id)}
+							aria-label={`Delete ${category.name}`}
+						>
+							<Trash2 className="h-4 w-4" />
+						</button>
+					</div>
 				</div>
 
 				{children.length > 0 && (
-					<div className="ml-4">
-						{children.map((child) => renderCategory(child, depth + 1))}
-					</div>
-				)}
+				<div className="ml-4">
+					{children.map((child: GroceryCategory | CategoryWithChildren) => renderCategory(child, depth + 1))}
+				</div>
+			)}
 			</div>
 		);
 	};
@@ -126,20 +213,34 @@ export function CategoryManager({
 		<div className="w-full">
 			<div className="flex justify-between items-center mb-4">
 				<h2 className="text-xl font-bold">Grocery Categories</h2>
-				<Button
-					onClick={() => setIsAdding(!isAdding)}
-					variant={isAdding ? "outline" : "default"}
-				>
-					{isAdding ? "Cancel" : "Add Category"}
-				</Button>
+				{!isEditing ? (
+					<Button
+						onClick={() => setIsAdding(!isAdding)}
+						variant={isAdding ? "outline" : "default"}
+					>
+						{isAdding ? "Cancel" : "Add Category"}
+					</Button>
+				) : (
+					<Button
+						onClick={() => {
+							setIsEditing(false);
+							setEditingCategory(null);
+						}}
+						variant="outline"
+					>
+						Cancel Edit
+					</Button>
+				)}
 			</div>
 
-			{isAdding && (
+			{(isAdding || isEditing) && (
 				<form
-					onSubmit={handleAddCategory}
+					onSubmit={isEditing ? handleUpdateCategory : handleAddCategory}
 					className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm"
 				>
-					<h3 className="text-lg font-medium mb-3">Add New Category</h3>
+					<h3 className="text-lg font-medium mb-3">
+						{isEditing ? `Edit Category: ${editingCategory?.name}` : "Add New Category"}
+					</h3>
 					<div className="space-y-4">
 						<div>
 							<label
@@ -239,8 +340,15 @@ export function CategoryManager({
 						</div>
 
 						<div className="flex justify-end">
-							<Button type="submit" disabled={!newCategoryName.trim()}>
-								Add Category
+							<Button 
+								type="submit" 
+								disabled={!newCategoryName.trim() || 
+									updateCategoryMutation.isPending || 
+									deleteCategoryMutation.isPending}
+							>
+								{isEditing ? 
+									(updateCategoryMutation.isPending ? "Updating..." : "Update Category") : 
+									"Add Category"}
 							</Button>
 						</div>
 					</div>

@@ -57,23 +57,47 @@ export async function getOrCreateDefaultCategories(
 export async function getGroceryCategoriesHierarchy(
 	userId: string,
 ): Promise<GroceryCategory[]> {
-	// Get all categories for the user
+	// Get all categories for the user with explicit include for children relation
 	const allCategories = await prisma.groceryCategory.findMany({
 		where: { userId },
-		include: {
-			items: true,
-			children: {
-				include: {
-					items: true,
-				},
-			},
-		},
+		orderBy: { name: 'asc' },
 	});
 
+	// Create a more explicit type for categories with children
+	type CategoryWithChildren = GroceryCategory & { 
+		children: CategoryWithChildren[] 
+	};
+
+	// Build a map of categories by ID for quick lookup
+	const categoriesById = new Map<string, CategoryWithChildren>();
+	
+	// Initialize each category with an empty children array
+	for (const category of allCategories) {
+		categoriesById.set(category.id, { 
+			...category, 
+			children: [] 
+		});
+	}
+	
+	// Populate children arrays
+	for (const category of allCategories) {
+		if (category.parentId) {
+			const parent = categoriesById.get(category.parentId);
+			if (parent) {
+				const child = categoriesById.get(category.id);
+				if (child) {
+					parent.children.push(child);
+				}
+			}
+		}
+	}
+
 	// Filter to only top-level categories (those without a parent)
-	const topLevelCategories = allCategories.filter(
-		(category) => !category.parentId,
-	);
+	const topLevelCategories = Array.from(categoriesById.values())
+		.filter(category => !category.parentId);
+
+	// Log the structure to help with debugging
+	console.log('Hierarchical categories:', JSON.stringify(topLevelCategories, null, 2));
 
 	return topLevelCategories;
 }
