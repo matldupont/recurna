@@ -5,7 +5,7 @@ import { getOrCreateUser } from '@/lib/user-service';
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
 
   try {
