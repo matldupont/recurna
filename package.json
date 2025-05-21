@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "prisma generate && prisma migrate deploy && next build",
+    "build:local": "next build",
     "start": "next start",
     "lint": "biome check src",
     "format": "biome check --write src",

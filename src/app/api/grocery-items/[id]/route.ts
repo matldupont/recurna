@@ -5,11 +5,11 @@ import { getOrCreateUser } from '@/lib/user-service';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
 
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     
     // Get the authenticated user from the database
     const user = await getOrCreateUser();
