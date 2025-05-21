@@ -30,6 +30,7 @@ interface CategoryListProps {
 	};
 	onToggleItem: (itemId: number) => void;
 	onAddItem: (data: { name: string; categoryId?: string }) => void;
+	onDeleteItem: (itemId: number) => void;
 }
 
 // Recursive component to render a category and its children
@@ -39,6 +40,7 @@ function CategoryItem({
 	expandedCategories,
 	toggleCategory,
 	onToggleItem,
+	onDeleteItem,
 	openAddItemModal,
 	level = 0,
 }: {
@@ -50,6 +52,7 @@ function CategoryItem({
 	expandedCategories: Record<string, boolean>;
 	toggleCategory: (categoryId: string) => void;
 	onToggleItem: (itemId: number) => void;
+	onDeleteItem: (itemId: number) => void;
 	openAddItemModal: (categoryId?: string) => void;
 	level: number;
 }) {
@@ -107,28 +110,41 @@ function CategoryItem({
 					{categoryItems.length > 0 ? (
 						<ul className="divide-y divide-gray-100 dark:divide-gray-700">
 							{categoryItems.map((item) => (
-								<li key={item.id} className="py-2 flex items-center">
-									<input
-										type="checkbox"
-										id={`item-${item.id}`}
-										checked={item.checked}
-										onChange={() => onToggleItem(item.id)}
-										className="mr-3 h-5 w-5"
-									/>
-									<label
-										htmlFor={`item-${item.id}`}
-										className={
-											item.checked ? "line-through text-gray-500" : ""
-										}
+								<li key={item.id} className="py-2 flex items-center justify-between">
+									<div className="flex items-center flex-1">
+										<input
+											type="checkbox"
+											id={`item-${item.id}`}
+											checked={item.checked}
+											onChange={() => onToggleItem(item.id)}
+											className="mr-3 h-5 w-5"
+										/>
+										<label
+											htmlFor={`item-${item.id}`}
+											className={
+												item.checked ? "line-through text-gray-500" : ""
+											}
+										>
+											{item.name}{" "}
+											{item.quantity > 1 && `(${item.quantity})`}
+											{item.notes && (
+												<span className="ml-2 text-sm text-gray-500">
+													- {item.notes}
+												</span>
+											)}
+										</label>
+									</div>
+									<button
+										type="button"
+										className="text-red-500 hover:text-red-700 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+										onClick={() => onDeleteItem(item.id)}
+										aria-label={`Delete ${item.name}`}
 									>
-										{item.name}{" "}
-										{item.quantity > 1 && `(${item.quantity})`}
-										{item.notes && (
-											<span className="ml-2 text-sm text-gray-500">
-												- {item.notes}
-											</span>
-										)}
-									</label>
+										<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<title>Delete item</title>
+											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+										</svg>
+									</button>
 								</li>
 							))}
 						</ul>
@@ -149,6 +165,7 @@ function CategoryItem({
 									expandedCategories={expandedCategories}
 									toggleCategory={toggleCategory}
 									onToggleItem={onToggleItem}
+									onDeleteItem={onDeleteItem}
 									openAddItemModal={openAddItemModal}
 									level={level + 1}
 								/>
@@ -166,6 +183,7 @@ export function CategoryList({
 	items,
 	onToggleItem,
 	onAddItem,
+	onDeleteItem,
 }: CategoryListProps) {
 	const [expandedCategories, setExpandedCategories] = useState<
 		Record<string, boolean>
@@ -216,6 +234,7 @@ export function CategoryList({
 						expandedCategories={expandedCategories}
 						toggleCategory={toggleCategory}
 						onToggleItem={onToggleItem}
+						onDeleteItem={onDeleteItem}
 						openAddItemModal={openAddItemModal}
 						level={0}
 					/>
@@ -223,33 +242,63 @@ export function CategoryList({
 
 
 				{/* Uncategorized items */}
-				{items?.uncategorized?.length > 0 && (
-					<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-						<div className="p-4">
-							<h3 className="font-medium">Uncategorized</h3>
-							<ul className="divide-y divide-gray-100 dark:divide-gray-700 mt-2">
+				{items.uncategorized.length > 0 && (
+					<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-4">
+						<div className="p-4 flex justify-between items-center">
+							<h3 className="font-medium">
+								Uncategorized
+								<span className="ml-2 text-gray-500 text-sm">
+									({items.uncategorized.length}{" "}
+									{items.uncategorized.length === 1 ? "item" : "items"})
+								</span>
+							</h3>
+							<Button 
+								variant="ghost" 
+								size="sm" 
+								onClick={() => openAddItemModal()}
+								className="ml-2"
+							>
+								<Plus className="h-4 w-4" />
+							</Button>
+						</div>
+						<div className="px-4 pb-4">
+							<ul className="divide-y divide-gray-100 dark:divide-gray-700">
 								{items.uncategorized.map((item) => (
-									<li key={item.id} className="py-2 flex items-center">
-										<input
-											type="checkbox"
-											id={`uncategorized-item-${item.id}`}
-											checked={item.checked}
-											onChange={() => onToggleItem(item.id)}
-											className="mr-3 h-5 w-5"
-										/>
-										<label
-											htmlFor={`uncategorized-item-${item.id}`}
-											className={
-												item.checked ? "line-through text-gray-500" : ""
-											}
+									<li key={item.id} className="py-2 flex items-center justify-between">
+										<div className="flex items-center flex-1">
+											<input
+												type="checkbox"
+												id={`item-uncategorized-${item.id}`}
+												checked={item.checked}
+												onChange={() => onToggleItem(item.id)}
+												className="mr-3 h-5 w-5"
+											/>
+											<label
+												htmlFor={`item-uncategorized-${item.id}`}
+												className={
+													item.checked ? "line-through text-gray-500" : ""
+												}
+											>
+												{item.name}{" "}
+												{item.quantity > 1 && `(${item.quantity})`}
+												{item.notes && (
+													<span className="ml-2 text-sm text-gray-500">
+														- {item.notes}
+													</span>
+												)}
+											</label>
+										</div>
+										<button
+											type="button"
+											className="text-red-500 hover:text-red-700 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+											onClick={() => onDeleteItem(item.id)}
+											aria-label={`Delete ${item.name}`}
 										>
-											{item.name} {item.quantity > 1 && `(${item.quantity})`}
-											{item.notes && (
-												<span className="ml-2 text-sm text-gray-500">
-													- {item.notes}
-												</span>
-											)}
-										</label>
+											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<title>Delete item</title>
+												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+											</svg>
+										</button>
 									</li>
 								))}
 							</ul>

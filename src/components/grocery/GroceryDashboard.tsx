@@ -6,7 +6,8 @@ import {
 	useGroceryCategories, 
 	useAddGroceryItem, 
 	useToggleGroceryItem, 
-	useAddGroceryCategory 
+	useAddGroceryCategory,
+	useDeleteGroceryItem
 } from "@/lib/api/grocery-api";
 import { useState, useEffect } from "react";
 import {
@@ -17,6 +18,7 @@ import {
 } from "../../components/ui/tabs";
 import { CategoryList } from "./CategoryList";
 import { CategoryManager } from "./CategoryManager";
+import { GrocerySummary } from "./GrocerySummary";
 
 interface GroceryDashboardProps {
 	userId: string;
@@ -39,6 +41,7 @@ export function GroceryDashboard({ userId, initialCategories }: GroceryDashboard
 	
 	const addItemMutation = useAddGroceryItem();
 	const toggleItemMutation = useToggleGroceryItem();
+	const deleteItemMutation = useDeleteGroceryItem();
 	const addCategoryMutation = useAddGroceryCategory();
 	
 	// Use initialCategories if available, otherwise use fetched categories
@@ -54,6 +57,11 @@ export function GroceryDashboard({ userId, initialCategories }: GroceryDashboard
 	// Handle toggling an item's checked status
 	const handleToggleItem = (itemId: number) => {
 		toggleItemMutation.mutate(itemId);
+	};
+
+	// Handle deleting a grocery item
+	const handleDeleteItem = (itemId: number) => {
+		deleteItemMutation.mutate(itemId);
 	};
 
 	// Handle adding a new grocery item
@@ -80,6 +88,7 @@ export function GroceryDashboard({ userId, initialCategories }: GroceryDashboard
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
 				<TabsList className="mb-4">
 					<TabsTrigger value="items">Grocery List</TabsTrigger>
+					<TabsTrigger value="summary">Summary</TabsTrigger>
 					<TabsTrigger value="categories">Manage Categories</TabsTrigger>
 				</TabsList>
 
@@ -90,6 +99,22 @@ export function GroceryDashboard({ userId, initialCategories }: GroceryDashboard
 						</div>
 					) : (
 						<CategoryList
+							categories={categories}
+							items={items || { categorized: {}, uncategorized: [] }}
+							onToggleItem={handleToggleItem}
+							onAddItem={handleAddItem}
+							onDeleteItem={handleDeleteItem}
+						/>
+					)}
+				</TabsContent>
+
+				<TabsContent value="summary" className="space-y-4">
+					{isItemsLoading ? (
+						<div className="text-center py-8">
+							<p>Loading grocery summary...</p>
+						</div>
+					) : (
+						<GrocerySummary
 							categories={categories}
 							items={items || { categorized: {}, uncategorized: [] }}
 							onToggleItem={handleToggleItem}

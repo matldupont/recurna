@@ -7,6 +7,7 @@ import type { GroceryCategory, GroceryItem } from '@/generated/prisma';
 export const QUERY_KEYS = {
   groceryItems: 'groceryItems',
   groceryCategories: 'groceryCategories',
+  uniqueItemNames: 'uniqueItemNames',
 };
 
 // API functions
@@ -71,6 +72,18 @@ const toggleGroceryItem = async (itemId: number) => {
   return response.json();
 };
 
+const deleteGroceryItem = async (itemId: number) => {
+  const response = await fetch(`/api/grocery-items/${itemId}`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to delete grocery item');
+  }
+  
+  return response.json();
+};
+
 const addGroceryCategory = async (data: { 
   name: string; 
   parentId?: string; 
@@ -115,12 +128,22 @@ const updateGroceryCategory = async (data: {
 };
 
 const deleteGroceryCategory = async (id: string) => {
-  const response = await fetch(`/api/grocery-categories?id=${id}`, {
+  const response = await fetch(`/api/grocery-categories/${id}`, {
     method: 'DELETE',
   });
   
   if (!response.ok) {
     throw new Error('Failed to delete grocery category');
+  }
+  
+  return response.json();
+};
+
+const fetchUniqueItemNames = async () => {
+  const response = await fetch('/api/grocery-items/unique-names');
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch unique item names');
   }
   
   return response.json();
@@ -165,6 +188,20 @@ export function useToggleGroceryItem() {
   });
 }
 
+export function useDeleteGroceryItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: deleteGroceryItem,
+    onSuccess: () => {
+      // Invalidate grocery items query to refetch data
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.groceryItems] });
+      // Also invalidate unique item names to update autocomplete suggestions
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.uniqueItemNames] });
+    },
+  });
+}
+
 export function useAddGroceryCategory() {
   const queryClient = useQueryClient();
   
@@ -195,8 +232,15 @@ export function useDeleteGroceryCategory() {
   return useMutation({
     mutationFn: deleteGroceryCategory,
     onSuccess: () => {
-      // Invalidate grocery categories query to refetch data
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.groceryCategories] });
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.groceryItems] });
     },
+  });
+}
+
+export function useUniqueItemNames() {
+  return useQuery({
+    queryKey: [QUERY_KEYS.uniqueItemNames],
+    queryFn: fetchUniqueItemNames,
   });
 }
