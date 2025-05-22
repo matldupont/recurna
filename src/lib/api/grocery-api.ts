@@ -72,6 +72,29 @@ const toggleGroceryItem = async (itemId: number) => {
   return response.json();
 };
 
+const updateGroceryItem = async (data: {
+  id: number;
+  name: string;
+  categoryId?: string;
+}) => {
+  const response = await fetch(`/api/grocery-items/${data.id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: data.name,
+      categoryId: data.categoryId,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to update grocery item');
+  }
+  
+  return response.json();
+};
+
 const deleteGroceryItem = async (itemId: number) => {
   const response = await fetch(`/api/grocery-items/${itemId}`, {
     method: 'DELETE',
@@ -184,6 +207,20 @@ export function useToggleGroceryItem() {
     onSuccess: () => {
       // Invalidate grocery items query to refetch data
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.groceryItems] });
+    },
+  });
+}
+
+export function useUpdateGroceryItem() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: updateGroceryItem,
+    onSuccess: () => {
+      // Invalidate grocery items query to refetch data
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.groceryItems] });
+      // Also invalidate unique item names to update autocomplete suggestions
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.uniqueItemNames] });
     },
   });
 }

@@ -3,6 +3,73 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getOrCreateUser } from '@/lib/user-service';
 
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params;
+    const data = await request.json();
+    
+    // Get the authenticated user from the database
+    const user = await getOrCreateUser();
+    
+    // If no user is found, return unauthorized
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Get user ID from the database
+    const userId = user.id;
+    
+    // Parse the item ID from the URL parameter
+    const itemId = Number.parseInt(id, 10);
+    
+    if (Number.isNaN(itemId)) {
+      return NextResponse.json(
+        { error: 'Invalid item ID' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if the item exists and belongs to the user
+    const existingItem = await prisma.groceryItem.findUnique({
+      where: { id: itemId },
+    });
+    
+    if (!existingItem) {
+      return NextResponse.json(
+        { error: 'Item not found' },
+        { status: 404 }
+      );
+    }
+    
+    if (existingItem.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized to update this item' },
+        { status: 403 }
+      );
+    }
+    
+    // Update the item
+    const updatedItem = await prisma.groceryItem.update({
+      where: { id: itemId },
+      data: {
+        name: data.name,
+        categoryId: data.categoryId || null,
+      },
+    });
+    
+    return NextResponse.json(updatedItem);
+  } catch (error) {
+    console.error('Error updating grocery item:', error);
+    return NextResponse.json(
+      { error: 'Failed to update grocery item' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }

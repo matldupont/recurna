@@ -6,7 +6,8 @@ import {
   useGroceryCategories, 
   useAddGroceryItem, 
   useToggleGroceryItem,
-  useDeleteGroceryItem
+  useDeleteGroceryItem,
+  useUpdateGroceryItem
 } from "@/lib/api/grocery-api";
 import { useState, useEffect } from "react";
 import { CategoryList } from "./CategoryList";
@@ -31,6 +32,7 @@ export function GroceryList({ userId, initialCategories }: GroceryListProps) {
   const addItemMutation = useAddGroceryItem();
   const toggleItemMutation = useToggleGroceryItem();
   const deleteItemMutation = useDeleteGroceryItem();
+  const updateItemMutation = useUpdateGroceryItem();
   
   // Use initialCategories if available, otherwise use fetched categories
   const [categories, setCategories] = useState<GroceryCategory[]>(initialCategories || []);
@@ -61,6 +63,15 @@ export function GroceryList({ userId, initialCategories }: GroceryListProps) {
     addItemMutation.mutate(data);
   };
 
+  // Handle editing an existing grocery item
+  const handleEditItem = (data: {
+    id: number;
+    name: string;
+    categoryId?: string;
+  }) => {
+    updateItemMutation.mutate(data);
+  };
+
   if (isItemsLoading || isCategoriesLoading) {
     return (
       <div className="text-center py-8">
@@ -76,6 +87,7 @@ export function GroceryList({ userId, initialCategories }: GroceryListProps) {
       onToggleItem={handleToggleItem}
       onAddItem={handleAddItem}
       onDeleteItem={handleDeleteItem}
+      onEditItem={handleEditItem}
     />
   );
 }

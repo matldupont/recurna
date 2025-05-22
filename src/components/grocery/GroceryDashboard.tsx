@@ -7,7 +7,8 @@ import {
 	useAddGroceryItem, 
 	useToggleGroceryItem, 
 	useAddGroceryCategory,
-	useDeleteGroceryItem
+	useDeleteGroceryItem,
+	useUpdateGroceryItem
 } from "@/lib/api/grocery-api";
 import { useState, useEffect } from "react";
 import {
@@ -42,6 +43,7 @@ export function GroceryDashboard({ userId, initialCategories }: GroceryDashboard
 	const addItemMutation = useAddGroceryItem();
 	const toggleItemMutation = useToggleGroceryItem();
 	const deleteItemMutation = useDeleteGroceryItem();
+	const updateItemMutation = useUpdateGroceryItem();
 	const addCategoryMutation = useAddGroceryCategory();
 	
 	// Use initialCategories if available, otherwise use fetched categories
@@ -71,6 +73,15 @@ export function GroceryDashboard({ userId, initialCategories }: GroceryDashboard
 		notes?: string;
 	}) => {
 		addItemMutation.mutate(data);
+	};
+
+	// Handle editing an existing grocery item
+	const handleEditItem = (data: {
+		id: number;
+		name: string;
+		categoryId?: string;
+	}) => {
+		updateItemMutation.mutate(data);
 	};
 
 	// Handle adding a new category
@@ -104,6 +115,7 @@ export function GroceryDashboard({ userId, initialCategories }: GroceryDashboard
 							onToggleItem={handleToggleItem}
 							onAddItem={handleAddItem}
 							onDeleteItem={handleDeleteItem}
+							onEditItem={handleEditItem}
 						/>
 					)}
 				</TabsContent>

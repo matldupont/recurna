@@ -8,7 +8,12 @@ import {
   DialogTitle,
   DialogClose
 } from "@/components/ui/dialog";
-import type { GroceryCategory } from "@/generated/prisma";
+import type { GroceryCategory as PrismaGroceryCategory } from "@/generated/prisma";
+
+// Extended type to include children for hierarchical structure
+interface GroceryCategory extends PrismaGroceryCategory {
+  children?: GroceryCategory[];
+}
 import { useState, useEffect, useRef } from "react";
 import { useUniqueItemNames } from "@/lib/api/grocery-api";
 
@@ -16,16 +21,22 @@ interface AddItemModalProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onAddItem: (data: { name: string; categoryId?: string }) => void;
+  onEditItem?: (data: { id: number; name: string; categoryId?: string }) => void;
   categories: GroceryCategory[];
   initialCategoryId?: string;
+  editItem?: { id: number; name: string; categoryId?: string };
+  mode?: 'add' | 'edit';
 }
 
 export function AddItemModal({
   isOpen,
   onOpenChange,
   onAddItem,
+  onEditItem,
   categories,
-  initialCategoryId
+  initialCategoryId,
+  editItem,
+  mode = 'add'
 }: AddItemModalProps) {
   const [newItemName, setNewItemName] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(initialCategoryId);
@@ -42,13 +53,18 @@ export function AddItemModal({
     setSelectedCategoryId(initialCategoryId);
   }, [initialCategoryId]);
 
-  // Reset form when modal opens
+  // Initialize form with edit item data or reset when modal opens
   useEffect(() => {
     if (isOpen) {
-      setNewItemName("");
+      if (mode === 'edit' && editItem) {
+        setNewItemName(editItem.name);
+        setSelectedCategoryId(editItem.categoryId);
+      } else {
+        setNewItemName("");
+      }
       setShowSuggestions(false);
     }
-  }, [isOpen]);
+  }, [isOpen, mode, editItem]);
 
   // Handle clicks outside the suggestions dropdown to close it
   useEffect(() => {
@@ -93,13 +109,37 @@ export function AddItemModal({
     inputRef.current?.focus();
   };
 
-  const handleAddItem = (e: React.FormEvent) => {
+  // Recursive function to render category options with proper indentation
+  const renderCategoryOptions = (categories: GroceryCategory[], depth = 0): React.ReactElement[] => {
+    return categories.flatMap((category) => {
+      const hasChildren = category.children && category.children.length > 0;
+      const indent = '\u00A0\u00A0'.repeat(depth); // Non-breaking spaces for indentation
+      
+      return [
+        <option key={category.id} value={category.id}>
+          {indent}{category.icon} {category.name}
+        </option>,
+        // Recursively render children if they exist
+        ...(hasChildren && category.children ? renderCategoryOptions(category.children, depth + 1) : [])
+      ];
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newItemName.trim()) {
-      onAddItem({
-        name: newItemName.trim(),
-        categoryId: selectedCategoryId,
-      });
+      if (mode === 'edit' && editItem && onEditItem) {
+        onEditItem({
+          id: editItem.id,
+          name: newItemName.trim(),
+          categoryId: selectedCategoryId,
+        });
+      } else {
+        onAddItem({
+          name: newItemName.trim(),
+          categoryId: selectedCategoryId,
+        });
+      }
       setNewItemName("");
       onOpenChange(false);
     }
@@ -109,9 +149,9 @@ export function AddItemModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add New Item</DialogTitle>
+          <DialogTitle>{mode === 'edit' ? 'Edit Item' : 'Add New Item'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleAddItem} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-3">
             <div className="relative">
               <label htmlFor="item-name" className="block text-sm font-medium mb-1">Item Name</label>
@@ -157,11 +197,7 @@ export function AddItemModal({
                 aria-label="Category"
               >
                 <option value="">No Category</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.icon} {category.name}
-                  </option>
-                ))}
+                {renderCategoryOptions(categories)}
               </select>
             </div>
           </div>
@@ -169,7 +205,9 @@ export function AddItemModal({
             <DialogClose asChild>
               <Button type="button" variant="outline">Cancel</Button>
             </DialogClose>
-            <Button type="submit" disabled={!newItemName.trim()}>Add Item</Button>
+            <Button type="submit" disabled={!newItemName.trim()}>
+              {mode === 'edit' ? 'Save Changes' : 'Add Item'}
+            </Button>
           </div>
         </form>
       </DialogContent>

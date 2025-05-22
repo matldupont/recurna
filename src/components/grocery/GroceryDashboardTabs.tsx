@@ -16,10 +16,10 @@ export function GroceryDashboardTabs({ activeTab }: GroceryDashboardTabsProps) {
 
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange}>
-      <TabsList className="mb-4">
-        <TabsTrigger value="list">Grocery List</TabsTrigger>
-        <TabsTrigger value="summary">Summary</TabsTrigger>
-        <TabsTrigger value="categories">Manage Categories</TabsTrigger>
+      <TabsList className="mb-4 grid grid-cols-3">
+        <TabsTrigger value="list">📋</TabsTrigger>
+        <TabsTrigger value="summary">🛒</TabsTrigger>
+        <TabsTrigger value="categories">🏷️</TabsTrigger>
       </TabsList>
     </Tabs>
   );

@@ -31,6 +31,7 @@ interface CategoryListProps {
 	onToggleItem: (itemId: number) => void;
 	onAddItem: (data: { name: string; categoryId?: string }) => void;
 	onDeleteItem: (itemId: number) => void;
+	onEditItem: (data: { id: number; name: string; categoryId?: string }) => void;
 }
 
 // Recursive component to render a category and its children
@@ -41,7 +42,9 @@ function CategoryItem({
 	toggleCategory,
 	onToggleItem,
 	onDeleteItem,
+	onEditItem,
 	openAddItemModal,
+	openEditItemModal,
 	level = 0,
 }: {
 	category: CategoryWithChildren;
@@ -53,7 +56,9 @@ function CategoryItem({
 	toggleCategory: (categoryId: string) => void;
 	onToggleItem: (itemId: number) => void;
 	onDeleteItem: (itemId: number) => void;
+	onEditItem: (data: { id: number; name: string; categoryId?: string }) => void;
 	openAddItemModal: (categoryId?: string) => void;
+	openEditItemModal: (item: GroceryItem, categoryId?: string) => void;
 	level: number;
 }) {
 	const categoryItems = items?.categorized?.[category.id] || [];
@@ -134,17 +139,30 @@ function CategoryItem({
 											)}
 										</label>
 									</div>
-									<button
-										type="button"
-										className="text-red-500 hover:text-red-700 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-										onClick={() => onDeleteItem(item.id)}
-										aria-label={`Delete ${item.name}`}
-									>
-										<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<title>Delete item</title>
-											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-										</svg>
-									</button>
+									<div className="flex items-center">
+										<button
+											type="button"
+											className="text-blue-500 hover:text-blue-700 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+											onClick={() => openEditItemModal(item, category.id)}
+											aria-label={`Edit ${item.name}`}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<title>Edit item</title>
+												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+											</svg>
+										</button>
+										<button
+											type="button"
+											className="text-red-500 hover:text-red-700 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+											onClick={() => onDeleteItem(item.id)}
+											aria-label={`Delete ${item.name}`}
+										>
+											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<title>Delete item</title>
+												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+											</svg>
+										</button>
+									</div>
 								</li>
 							))}
 						</ul>
@@ -166,7 +184,9 @@ function CategoryItem({
 									toggleCategory={toggleCategory}
 									onToggleItem={onToggleItem}
 									onDeleteItem={onDeleteItem}
+									onEditItem={onEditItem}
 									openAddItemModal={openAddItemModal}
+									openEditItemModal={openEditItemModal}
 									level={level + 1}
 								/>
 							))}
@@ -184,12 +204,15 @@ export function CategoryList({
 	onToggleItem,
 	onAddItem,
 	onDeleteItem,
+	onEditItem,
 }: CategoryListProps) {
 	const [expandedCategories, setExpandedCategories] = useState<
 		Record<string, boolean>
 	>({});
 	const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+	const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
 	const [modalCategoryId, setModalCategoryId] = useState<string | undefined>(undefined);
+	const [editItem, setEditItem] = useState<{ id: number; name: string; categoryId?: string } | undefined>(undefined);
 
 	// Toggle category expansion
 	const toggleCategory = (categoryId: string) => {
@@ -205,6 +228,17 @@ export function CategoryList({
 		setIsAddItemModalOpen(true);
 	};
 
+	// Open edit modal with item data
+	const openEditItemModal = (item: GroceryItem, categoryId?: string) => {
+		setEditItem({
+			id: item.id,
+			name: item.name,
+			categoryId: categoryId,
+		});
+		setModalCategoryId(categoryId);
+		setIsEditItemModalOpen(true);
+	};
+
 	return (
 		<div className="w-full">
 			{/* Add Item Modal */}
@@ -214,6 +248,19 @@ export function CategoryList({
 				onAddItem={onAddItem}
 				categories={categories}
 				initialCategoryId={modalCategoryId}
+				mode="add"
+			/>
+
+			{/* Edit Item Modal */}
+			<AddItemModal 
+				isOpen={isEditItemModalOpen}
+				onOpenChange={setIsEditItemModalOpen}
+				onAddItem={onAddItem}
+				onEditItem={onEditItem}
+				categories={categories}
+				initialCategoryId={modalCategoryId}
+				editItem={editItem}
+				mode="edit"
 			/>
 
 			{/* Add Item Button (Global) */}
@@ -235,7 +282,9 @@ export function CategoryList({
 						toggleCategory={toggleCategory}
 						onToggleItem={onToggleItem}
 						onDeleteItem={onDeleteItem}
+						onEditItem={onEditItem}
 						openAddItemModal={openAddItemModal}
+						openEditItemModal={openEditItemModal}
 						level={0}
 					/>
 				))}
@@ -288,17 +337,30 @@ export function CategoryList({
 												)}
 											</label>
 										</div>
-										<button
-											type="button"
-											className="text-red-500 hover:text-red-700 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
-											onClick={() => onDeleteItem(item.id)}
-											aria-label={`Delete ${item.name}`}
-										>
-											<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-												<title>Delete item</title>
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-											</svg>
-										</button>
+										<div className="flex items-center">
+											<button
+												type="button"
+												className="text-blue-500 hover:text-blue-700 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+												onClick={() => openEditItemModal(item)}
+												aria-label={`Edit ${item.name}`}
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<title>Edit item</title>
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+												</svg>
+											</button>
+											<button
+												type="button"
+												className="text-red-500 hover:text-red-700 ml-2 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+												onClick={() => onDeleteItem(item.id)}
+												aria-label={`Delete ${item.name}`}
+											>
+												<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<title>Delete item</title>
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+												</svg>
+											</button>
+										</div>
 									</li>
 								))}
 							</ul>

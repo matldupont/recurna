@@ -1,18 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose
-} from "@/components/ui/dialog";
 import type { GroceryCategory, GroceryItem as PrismaGroceryItem } from "@/generated/prisma";
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { AddItemModal } from "./AddItemModal";
+import clsx from "clsx";
 
 // Extend the Prisma GroceryItem type to include the checked and notes properties
 type GroceryItem = PrismaGroceryItem & { checked?: boolean; notes?: string };
@@ -41,6 +34,7 @@ function CategoryItem({
 	onToggleItem,
 	openAddItemModal,
 	level = 0,
+	isChild = false,
 }: {
 	category: CategoryWithChildren;
 	items: {
@@ -52,6 +46,7 @@ function CategoryItem({
 	onToggleItem: (itemId: number) => void;
 	openAddItemModal: (categoryId?: string) => void;
 	level: number;
+	isChild?: boolean;
 }) {
 	const categoryItems = items?.categorized?.[category.id] || [];
 	const isExpanded = expandedCategories?.[category.id] === true; // Default to collapsed
@@ -72,13 +67,15 @@ function CategoryItem({
 
 	return (
 		<div
-			className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden mb-1"
+			className={clsx("bg-white dark:bg-gray-800 rounded-lg  overflow-hidden mb-1", isChild ? "" : "shadow-sm")}
 			style={{
-				borderLeft: `4px solid ${category.color || "#e2e8f0"}`,
+				borderLeft: !isChild ? `4px solid ${category.color || "#e2e8f0"}` : "none",
 				marginLeft: level > 0 ? `${level * 16}px` : '0',
+				backgroundColor: category.color ? `${category.color}20` : "inherit",
+
 			}}
 		>
-			<div className="py-2 px-3 flex justify-between items-center">
+			<div className={clsx("flex justify-between items-center", isChild ? "pr-3" : "py-2 px-3")}>
 				<button
 					type="button"
 					className="flex-1 flex items-center cursor-pointer bg-transparent border-none text-left"
@@ -162,11 +159,7 @@ function CategoryItem({
 			{hasChildren && (
 				<div className="mt-1">
 					{category.children
-						?.filter(childCategory => {
-							// Get all categories to check for unchecked items
-							const allCategories = category.children || [];
-							return hasUncheckedItems(childCategory, items, allCategories);
-						})
+						?.filter(childCategory => hasUncheckedItems(childCategory, items))
 						.map((childCategory) => (
 						<CategoryItem
 							key={childCategory.id}
@@ -177,6 +170,7 @@ function CategoryItem({
 							onToggleItem={onToggleItem}
 							openAddItemModal={openAddItemModal}
 							level={level + 1}
+							isChild
 						/>
 					))}
 				</div>
@@ -187,12 +181,11 @@ function CategoryItem({
 
 // Helper function to check if a category has any unchecked items (directly or in children)
 function hasUncheckedItems(
-	category: GroceryCategory,
+	category: CategoryWithChildren,
 	items: {
 		categorized: Record<string, GroceryItem[]>;
 		uncategorized: GroceryItem[];
 	},
-	allCategories: GroceryCategory[],
 	checkedCategories: Set<string> = new Set()
 ): boolean {
 	// Avoid infinite recursion by tracking checked categories
@@ -208,11 +201,11 @@ function hasUncheckedItems(
 	}
 
 	// Check if any child categories have unchecked items
-	// Get child categories by filtering all categories where parentId matches this category's id
-	const childCategories = allCategories.filter((c: GroceryCategory) => c.parentId === category.id);
+	// Use the children property from CategoryWithChildren type
+	const childCategories = category.children || [];
 	if (childCategories.length > 0) {
 		for (const childCategory of childCategories) {
-			if (hasUncheckedItems(childCategory, items, allCategories, checkedCategories)) {
+			if (hasUncheckedItems(childCategory, items, checkedCategories)) {
 				return true;
 			}
 		}
@@ -313,10 +306,10 @@ export function GrocerySummary({
 			</div>
 
 			{/* Categories and items */}
-			<div className="space-y-2">
+			<div className="flex flex-col gap-y-2">
 				{/* Render categories recursively - only if they have unchecked items */}
 				{categories?.filter(category => 
-					hasUncheckedItems(category, items, categories)
+					hasUncheckedItems(category, items)
 				).map((category) => (
 					<CategoryItem
 						key={category.id}
